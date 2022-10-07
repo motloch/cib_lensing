@@ -140,7 +140,7 @@ def add_cib_fluxes(which):
 					])
 
 		chi = np.sqrt(x**2+y**2+z**2)
-		redshift = zofchi(chi)
+		redshift = z_from_chi(chi)
 
 		#For each galaxy determine whether it is in the given redshift bin
 		is_in_z_bin = (redshift >= ZMIN) * (redshift < ZMAX)

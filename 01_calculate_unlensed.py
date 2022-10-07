@@ -102,7 +102,7 @@ def add_cib_fluxes(which):
 					])
 
 		chi = np.sqrt(x**2+y**2+z**2)
-		redshift = zofchi(chi)
+		redshift = z_from_chi(chi)
 
 		#Loop over redshift bins
 		for z_idx in range(N_Z_SHELLS):
