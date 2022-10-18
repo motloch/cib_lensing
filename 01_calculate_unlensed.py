@@ -1,7 +1,12 @@
 """
-Calculate unlensed CIB maps (in several redshift shells). Loop over galaxies, find their
-positions, add fluxes to the corresponding pixels. Mostly refactoring Jason's code, only
-made sure centrals and satellites are treated in the same manner. 
+Given a catalog of galaxy angular positions, redshifts and luminosities, calculate
+unlensed CIB maps. Outputs both the total CIB flux and a series of fluxes from galaxies
+located in several redshift shells [z, z+dz]. 
+
+Loops over galaxies, finds their positions, adds fluxes to the corresponding pixels. 
+
+Mostly refactoring Jaemyoung (Jason) Lee's code, only made sure centrals and satellites
+are treated in uniform manner. 
 """
 import healpy as hp
 import h5py
@@ -10,21 +15,25 @@ import numpy as np
 import time
 import sys
 
-NSIDE = 4096			#Healpix NSIDE determining resolution of the map
+NSIDE = 4096					#Healpix NSIDE determining resolution of the map
 BATCHSIZE = 10000000	#How many haloes we process simultaneously
-N_Z_SHELLS  = 23		#How many redshift bins we want
-DZ = 0.2				#Size of the redshift bin
+N_Z_SHELLS  = 23			#How many redshift bins we want
+DZ = 0.2							#Size of each redshift bin
+
+"""
+Load the requested frequency from the run arguments
+"""
 
 try:
   assert(len(sys.argv) == 2)
 except:
 	print('Wrong number of arguments inputted')
-	print('Requested: frequency')
+	print('Requested: frequency index, as defined in the input file')
 	print('Example: 3')
 	exit()
 
 FREQ_IDX = int(sys.argv[1]) #Flux at which frequency we want to use? Given by the zero-based 
-						#    index in the frequency array
+														#index in the frequency array, as given in the input file
 
 """
 Load the catalog
@@ -33,24 +42,24 @@ dir_path = '/scratch/r/rbond/gstein/peak-patch-runs/current/jason_cib_lensing/20
 galcat = h5py.File(dir_path + 'galaxy_catalogue_latest.h5', 'r')
 
 """
-Print descriptive information
+Print descriptive information about the catalog
 """
 
-print("fields included in the file are:")
+print("Fields included in the file are:")
 print(galcat.keys())
-print("shapes of these fields are:")
+print("Shapes of these fields are:")
 print([galcat[key].shape for key in galcat.keys()])
 
-print('columns in flux arrays are for frequencies:')
+print('Columns in flux arrays are for frequencies:')
 print(galcat['observation_frequencies'][:])
-print('chosen frequency:')
+print('Chosen frequency:')
 chosen_freq = galcat['observation_frequencies'][FREQ_IDX]
 print(chosen_freq)
 
-print("number of central galaxies:")
+print("Number of central galaxies:")
 print(galcat['mass_cen'].shape[0])
 
-print("number of the satellite galaxies:")
+print("Number of the satellite galaxies:")
 print(galcat['mass_sat'].shape[0])
 
 nsats = galcat['nsat_inhalo']
@@ -62,28 +71,26 @@ print("Maximal number of satellites:")
 print(np.max(nsats))
 
 """
-Healpix maps to store the results - CIB fluxes at chosen frequency, from galaxies
-at various redshift slices
+Healpix maps to store the results in - CIB fluxes (at chosen frequency) from galaxies in
+various redshift slices 
 """
 
 cib_maps   = np.zeros( (N_Z_SHELLS, hp.nside2npix(NSIDE)) )
 time_at_start = time.time()
 
-"""
-Function that loops over the galaxies and adds their fluxes to the CIB maps. Takes a
-single parameter, determining whether we are summing over centrals 'cen' or satellites
-'sat'
-"""
-
 def add_cib_fluxes(which):
+	"""
+	Function that loops over the galaxies and adds their fluxes to the CIB maps. Takes a
+	single parameter, determining whether we are summing over centrals 'cen' or satellites
+	'sat'. Does not return anything, alters the "cib_maps" array.
+	"""
 	
 	if which not in ['cen', 'sat']:
 		print("add_cib_fluxes needs either 'cen' or 'sat' as an argument!")
 		exit()
 
+	#Go over all galaxies in batches of predetermined size
 	num_batches = int(np.ceil(len(galcat['xpos_' + which])/BATCHSIZE))
-
-	#Go over all galaxies in batches
 	for batch_idx in np.arange(num_batches): 
 
 		#Which galaxies we go over in the current batch.

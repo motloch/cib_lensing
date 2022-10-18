@@ -1,9 +1,15 @@
 """
-Calculate lensed CIB maps. Analogous to the unlensed code, only we process one redshift
-bin at the time to avoid having to load the kappa, d, alpha maps all the time (or storing
-all of them in memory).
+Given a catalog of galaxy angular positions, redshifts and luminosities, calculate lensed
+CIB maps unsing the precomputed maps of gravitational lensing deflection
+magnitude/direction. 
 
-In this code, we magnify using 1/(1-kappa)^2, which should be the proper way.
+Unlike the unlensed code, takes index of a redshift shell as an argument and only
+calculates lensing for source CIB galaxies in this redshift shell (for memory reasons).
+
+Loops over galaxies, finds their unlensed positions, uses the deflection maps to find the
+lensed positions and adds fluxes to the corresponding pixels _after taking magnification
+into account_ by multiplying flux with (1-kappa)^-2. This assumes magnification due to
+shear is negligible.
 """
 import healpy as hp
 import h5py
@@ -13,13 +19,11 @@ import time
 import sys
 from utils import get_lensed_pixel_numbers_from_xyz
 
-NSIDE = 4096			#Healpix NSIDE determining resolution of the map
-BATCHSIZE = 10000000	#How many haloes we process simultaneously
-N_Z_SHELLS  = 23		#How many redshift bins we want
-DZ = 0.2				#Size of the redshift bin
-
-NSIDE = 4096
-PIX_SIZE = 1./np.sqrt(3.)/NSIDE
+NSIDE = 4096										#Healpix NSIDE determining resolution of the map
+BATCHSIZE = 10000000 						#How many haloes we process simultaneously
+N_Z_SHELLS  = 23		 						#How many redshift bins we want
+DZ = 0.2				     						#Size of the redshift bin
+PIX_SIZE = 1./np.sqrt(3.)/NSIDE #Effective diameter of a pixel, treating it as a circle
 
 """
 Process input parameters
@@ -29,7 +33,7 @@ try:
   assert(len(sys.argv) == 3)
 except:
 	print('Wrong number of arguments inputted')
-	print('Requested: frequency redshift_bin')
+	print('Requested: frequency_index redshift_bin')
 	print('Example: 3 1')
 	exit()
 
@@ -52,21 +56,21 @@ galcat = h5py.File(dir_path + 'galaxy_catalogue_latest.h5', 'r')
 Print descriptive information
 """
 
-print("fields included in the file are:")
+print("Fields included in the file are:")
 print(galcat.keys())
-print("shapes of these fields are:")
+print("Shapes of these fields are:")
 print([galcat[key].shape for key in galcat.keys()])
 
-print('columns in flux arrays are for frequencies:')
+print('Columns in flux arrays are for frequencies:')
 print(galcat['observation_frequencies'][:])
-print('chosen frequency:')
+print('Chosen frequency:')
 chosen_freq = galcat['observation_frequencies'][FREQ_IDX]
 print(chosen_freq)
 
-print("number of central galaxies:")
+print("Number of central galaxies:")
 print(galcat['mass_cen'].shape[0])
 
-print("number of the satellite galaxies:")
+print("Number of the satellite galaxies:")
 print(galcat['mass_sat'].shape[0])
 
 nsats = galcat['nsat_inhalo']
@@ -78,20 +82,19 @@ print("Maximal number of satellites:")
 print(np.max(nsats))
 
 """
-Healpix maps to store the results - CIB fluxes at chosen frequency, from galaxies
-at various redshift slices
+Healpix map to store the results in - CIB flux (at chosen frequency) from galaxies in
+the chose redshift slice
 """
-
 cib_map   = np.zeros( hp.nside2npix(NSIDE) )
 time_at_start = time.time()
 
 """
-Lensing fields
+Precomputed lensing maps
 """
 
 kappa_dir = '/scratch/r/rbond/jasonlee/cib_lensing2020/kappa_maps/total/'
 zmax_str    = f'{ZMIN:.1f}'
-zsource_str = f'{ZMIN + 0.1:.1f}'
+zsource_str = f'{ZMIN + DZ/2.:.1f}'
 
 kappa_map = hp.read_map(kappa_dir + 'total_zmax' + zmax_str + '_zsource' + zsource_str + '_kap.fits')
 kappa_map = hp.smoothing(kappa_map, sigma = PIX_SIZE)
@@ -107,21 +110,19 @@ except:
 	print('One of the maps (kappa, d, alpha) has wrong NSIDE. Aborting.')
 	exit()
 
-"""
-Function that loops over the galaxies and adds their fluxes to the CIB maps. Takes a
-single parameter, determining whether we are summing over centrals 'cen' or satellites
-'sat'
-"""
-
 def add_cib_fluxes(which):
+	"""
+	Function that loops over the galaxies and adds their fluxes to the CIB map. Takes a
+	single parameter, determining whether we are summing over centrals 'cen' or satellites
+	'sat'. Does not return anything, alters the "cib_map" array.
+	"""
 	
 	if which not in ['cen', 'sat']:
 		print("add_cib_fluxes needs either 'cen' or 'sat' as an argument!")
 		exit()
 
+	#Go over all galaxies in batches of predetermined size
 	num_batches = int(np.ceil(len(galcat['xpos_' + which])/BATCHSIZE))
-
-	#Go over all galaxies in batches
 	for batch_idx in np.arange(num_batches): 
 
 		#Which galaxies we go over in the current batch.
@@ -169,6 +170,7 @@ def add_cib_fluxes(which):
 						#Include magnification of the source due to lensing
 						#https://microlensing-source.org/tutorial/magnification/
 						#http://articles.adsabs.harvard.edu/pdf/1964MNRAS.128..295R
+						# [Neglects magnification due to shear]
 						flux[is_in_z_bin]/(1 - kappa_map[pix_unl])**2
 					)
 
@@ -198,7 +200,7 @@ np.mean(cib_map),
 np.var( cib_map), 
 np.max( cib_map)
 )
-hp.write_map('output/lensed_proper_magnification/smooth_1pix_cib_' + str(chosen_freq) + '_shell_%d.fits' % (Z_IDX), 
+hp.write_map('output/lensed/cib_' + str(chosen_freq) + '_shell_%d.fits' % (Z_IDX), 
 	cib_map,
 	overwrite = True
 )
