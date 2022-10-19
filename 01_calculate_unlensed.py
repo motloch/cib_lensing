@@ -1,5 +1,5 @@
 """
-Given a catalog of galaxy angular positions, redshifts and luminosities, calculate
+Given a catalog of galaxy angular positions, redshifts and fluxes, calculate
 unlensed CIB maps. Outputs both the total CIB flux and a series of fluxes from galaxies
 located in several redshift shells [z, z+dz]. 
 
@@ -38,7 +38,7 @@ FREQ_IDX = int(sys.argv[1]) #Flux at which frequency we want to use? Given by th
 """
 Load the catalog
 """
-dir_path = '/scratch/r/rbond/gstein/peak-patch-runs/current/jason_cib_lensing/2020/cib_mapmaking/galaxy_catalogue/'
+dir_path = '/scratch/r/rbond/jasonlee/cib_lensing2020/gal_catalog/mapmaker/maps_vNov2021/checks/galaxy_catalogue/'
 galcat = h5py.File(dir_path + 'galaxy_catalogue_latest.h5', 'r')
 
 """

@@ -1,5 +1,5 @@
 """
-Given a catalog of galaxy angular positions, redshifts and luminosities, calculate lensed
+Given a catalog of galaxy angular positions, redshifts and fluxes, calculate lensed
 CIB maps unsing the precomputed maps of gravitational lensing deflection
 magnitude/direction. 
 
@@ -49,7 +49,7 @@ ZMAX = ZMIN + DZ
 """
 Load the catalog
 """
-dir_path = '/scratch/r/rbond/gstein/peak-patch-runs/current/jason_cib_lensing/2020/cib_mapmaking/galaxy_catalogue/'
+dir_path = '/scratch/r/rbond/jasonlee/cib_lensing2020/gal_catalog/mapmaker/maps_vNov2021/checks/galaxy_catalogue/'
 galcat = h5py.File(dir_path + 'galaxy_catalogue_latest.h5', 'r')
 
 """
