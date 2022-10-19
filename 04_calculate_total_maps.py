@@ -13,7 +13,10 @@ def get_total_cib_map(which, frequency):
 	Add CIB fluxes from individual redshift shells. Allows us to pick which set of maps
 	(unlensed, lensed) we want and which frequency.
 	"""
-	cib_map = hp.read_map('output/' + which + '/cib_' + frequency + '_shell_0.fits')
+
+	# In our model, the closest shell is not lensed (as there is no matter that could lens)
+	cib_map = hp.read_map('output/unlensed/cib_' + frequency + '_shell_0.fits')
+
 	for idx in range(1,NUM_Z_SHELLS):
 			cib_map += hp.read_map('output/' + which + '/cib_' + frequency + '_shell_' + str(idx) + '.fits')
 

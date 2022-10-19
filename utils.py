@@ -105,7 +105,7 @@ def get_lensed_pixel_numbers_from_xyz(x, y, z, d_map, alpha_map):
 				numpy array of length len(x) representing "healpix pixel numbers" of the
 									pixels in which we can find (x,y,z) after lensing
 			"""
-			assert(len(d_map) == len(alph_map))
+			assert(len(d_map) == len(alpha_map))
 			assert(len(x) == len(y) == len(z))
 
 			#Angular position before deflection
